@@ -1,0 +1,19 @@
+node_modules/
+.sky-smoke.local.patch.yml
+*.tgz
+*.zip
+coverage/
+.env
+.env.*
+*.log
+
+# Runtime ledgers and acceptance environments
+.active.lock
+*.jsonl
+*.jsonl.zstd
+.sky-*/
+**/DSH_HOME/
+**/dsh-home/
+evidence/
+acceptance-evidence/
+.env.local

@@ -1,0 +1,6 @@
+# Protection is opt-in per tool.
+- insert:
+    - id: sky-evidence-recovery
+      name: sky-evidence-recovery
+      config:
+        rules: []
