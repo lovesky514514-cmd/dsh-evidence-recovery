@@ -217,15 +217,21 @@ test('offline admin CLI rejects held lock, stale generation and weak evidence be
   ledger.lock()
   const ticket = ledger.claim(tool, args)
   ledger.settle(ticket.key, ticket.executionId, false)
-  function reconcile(id, body) {
+  function reconcile(id, body, skipPreview = false) {
     writeFileSync(proof, JSON.stringify(body))
-    return spawnSync(process.execPath, [
+    const command = [
       admin, 'reconcile', '--data-dir', dir, '--tool', tool, '--args-file', argsFile,
       '--decision', 'not_committed', '--execution-id', id, '--evidence-file', proof,
-      '--confirm', 'I_VERIFIED_READBACK',
-    ], { encoding: 'utf8', timeout: 5000 })
+    ]
+    const run = extra => spawnSync(process.execPath, [...command, ...extra], { encoding: 'utf8', timeout: 5000 })
+    const confirm = ['--confirm', 'I_VERIFIED_READBACK']
+    if (skipPreview) return run(confirm)
+    const preview = run(['--dry-run'])
+    if (preview.status !== 0) return preview
+    return run([...confirm, '--expect-preview', JSON.parse(preview.stdout).previewToken])
   }
 
+  assert.match(reconcile(ticket.executionId, evidence(), true).stderr, /预览令牌/)
   const held = reconcile(ticket.executionId, evidence())
   assert.equal(held.status, 1)
   assert.match(held.stderr, /账本锁/)

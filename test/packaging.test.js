@@ -15,8 +15,15 @@ test('PowerShell 5.1 启动脚本保留 UTF-8 BOM', () => {
 
 test('npm bundle allowlist excludes the operator CLI and test fixtures', () => {
   const { files } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  for (const name of ['admin.js', 'test', 'scripts']) assert.equal(files.includes(name), false)
-  for (const name of ['index.js', 'ledger.js', 'demo.js', 'cordis.patch.yml']) assert.ok(files.includes(name))
+  for (const name of ['admin.js', 'test', 'scripts', '启动SKY向导.cmd', 'SKY_新手向导.ps1']) {
+    assert.equal(files.includes(name), false)
+  }
+  const runtime = [
+    'index.js', 'ledger.js', 'demo.js', 'cordis.patch.yml', 'web-client.js', 'web-host.js', 'web-access.js',
+  ]
+  for (const name of runtime) {
+    assert.ok(files.includes(name))
+  }
 })
 
 function fakeDsh(t) {

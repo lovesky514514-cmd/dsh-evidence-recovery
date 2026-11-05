@@ -13,6 +13,7 @@ const sha = value => createHash('sha256').update(value).digest('hex')
 const hashPattern = /^[a-f0-9]{64}$/
 const recordFilename = /^[a-f0-9]{64}\.json$/
 const executionIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+const evidenceReferencePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/
 const attemptStates = ['running', 'unknown', 'succeeded', 'released']
 const parseDate = value => typeof value === 'string' ? Date.parse(value) : NaN
 const diagnosticCodes = new Set([
@@ -40,6 +41,13 @@ function canonical(value, depth = 0) {
   throw new LedgerInputError('SKY_INVALID_INPUT', '工具参数包含无法安全序列化的值')
 }
 
+function businessKey(tool, businessId) {
+  if (typeof businessId !== 'string' || !businessId.trim() || businessId.length > 1024) {
+    throw new LedgerInputError('SKY_KEY_MISSING', '缺少有效业务身份字段')
+  }
+  return sha(tool + '\u0000' + businessId)
+}
+
 export function identity(tool, args, keyArg) {
   if (typeof tool !== 'string' || !tool || !args || typeof args !== 'object' || Array.isArray(args)) {
     throw new LedgerInputError('SKY_INVALID_INPUT', '工具名称或参数格式无效')
@@ -48,12 +56,10 @@ export function identity(tool, args, keyArg) {
   if (Buffer.byteLength(normalized, 'utf8') > MAX_ARGUMENT_BYTES) {
     throw new LedgerInputError('SKY_ARGUMENT_TOO_LARGE', '工具参数超出保护上限')
   }
-  const businessId = Object.hasOwn(args, keyArg) ? args[keyArg] : undefined
-  if (keyArg && (typeof businessId !== 'string' || !businessId.trim() || businessId.length > 1024)) {
-    throw new LedgerInputError('SKY_KEY_MISSING', '缺少有效业务身份字段')
-  }
   const fingerprint = sha(normalized)
-  return { key: sha(tool + '\u0000' + (keyArg ? businessId : fingerprint)), fingerprint }
+  const businessId = Object.hasOwn(args, keyArg) ? args[keyArg] : undefined
+  const key = keyArg ? businessKey(tool, businessId) : sha(tool + '\u0000' + fingerprint)
+  return { key, fingerprint }
 }
 
 function directoryChain(dir, create = false) {
@@ -151,6 +157,7 @@ function validRecord(record, key) {
   const current = record.attempts.at(-1)
   return record.attempts.every(attempt => attempt && typeof attempt.executionId === 'string' &&
     attempt.executionId && Number.isFinite(parseDate(attempt.startedAt)) && attemptStates.includes(attempt.state) &&
+    (attempt.fingerprint === undefined || hashPattern.test(attempt.fingerprint)) &&
     (!attempt.reconciledAt ||
       (Number.isFinite(parseDate(attempt.reconciledAt)) && hashPattern.test(attempt.readbackEvidenceSha256))) &&
     (attempt.state !== 'released' || legacyRelease(attempt) || attempt.reconciledAt)) &&
@@ -162,7 +169,7 @@ function operatorSummary(record) {
   const state = stateOf(record)
   const { dshErrorCode, reason } = current
   if (!executionIdPattern.test(record.executionId)) throw new Error('账本执行代次格式无效')
-  return {
+  const summary = {
     recordId: record.key,
     tool: record.tool,
     executionId: record.executionId,
@@ -174,6 +181,12 @@ function operatorSummary(record) {
     // A syntactically valid error identifier can still contain private data.
     diagnosticCode: diagnosticCodes.has(dshErrorCode) ? dshErrorCode : (dshErrorCode ? 'OTHER_TOOL_ERROR' : null),
   }
+  const observedAt = parseDate(current.readbackObservedAt)
+  if (Number.isFinite(observedAt)) summary.readbackObservedAt = new Date(observedAt).toISOString()
+  if (typeof current.readbackReference === 'string' && evidenceReferencePattern.test(current.readbackReference)) {
+    summary.readbackReference = current.readbackReference
+  }
+  return summary
 }
 
 export class Ledger {
@@ -248,6 +261,30 @@ export class Ledger {
     }
   }
 
+  inspectLock() {
+    this.assertDirectory()
+    let lock
+    try {
+      lock = readJson(this.lockPath, 1024)
+    } catch (error) {
+      return { state: error instanceof SyntaxError ? 'invalid' : 'unreadable' }
+    }
+    if (!lock) return { state: 'absent' }
+    const { pid, startedAt } = lock.value ?? {}
+    if (!Number.isInteger(pid) || pid < 1 || pid > 0x7fffffff ||
+        typeof lock.value.owner !== 'string' || !executionIdPattern.test(lock.value.owner) ||
+        !Number.isFinite(parseDate(startedAt))) return { state: 'invalid' }
+
+    // Signal zero probes PID visibility; a recycled PID can belong to another process.
+    let processStatus = 'visible'
+    try {
+      process.kill(pid, 0)
+    } catch (error) {
+      processStatus = error.code === 'ESRCH' ? 'not_found' : 'unverified'
+    }
+    return { state: 'present', pid, startedAt: new Date(parseDate(startedAt)).toISOString(), processStatus }
+  }
+
   close() {
     if (!this.checkOwner()) return
     try {
@@ -310,6 +347,13 @@ export class Ledger {
     return operatorSummary(record)
   }
 
+  lookupBusinessId(tool, businessId) {
+    if (typeof tool !== 'string' || !tool) throw new LedgerInputError('SKY_INVALID_INPUT', '请指定工具名称')
+    const record = this.read(businessKey(tool, businessId))
+    if (!record || record.tool !== tool) return { found: false }
+    return { found: true, record: operatorSummary(record) }
+  }
+
   listPending() {
     this.assertDirectory()
     const records = []
@@ -332,8 +376,12 @@ export class Ledger {
     this.assertOwner()
     const { key, fingerprint } = identity(tool, args, keyArg)
     const previous = this.read(key)
-    if (previous && previous.fingerprint !== fingerprint) return { ok: false, code: 'SKY_KEY_CONFLICT' }
     const state = previous ? stateOf(previous) : 'new'
+    const prior = previous?.attempts.at(-1)
+    const verifiedRelease = state === 'released' && prior.reconciliationDecision === 'not_committed'
+    if (previous && previous.fingerprint !== fingerprint && !verifiedRelease) {
+      return { ok: false, code: 'SKY_KEY_CONFLICT' }
+    }
     if (state !== 'new' && state !== 'released') {
       const code = state === 'succeeded' ? 'SKY_ALREADY_EXECUTED' : 'SKY_EXECUTION_UNKNOWN'
       return { ok: false, code }
@@ -341,10 +389,12 @@ export class Ledger {
     const now = new Date().toISOString()
     const executionId = randomUUID()
     const record = previous || { version: 1, key, fingerprint, tool, attempts: [] }
+    if (prior) prior.fingerprint ??= record.fingerprint
+    record.fingerprint = fingerprint
     record.executionId = executionId
     record.state = 'running'
     record.updatedAt = now
-    record.attempts.push({ executionId, startedAt: now, state: 'running' })
+    record.attempts.push({ executionId, fingerprint, startedAt: now, state: 'running' })
     this.write(record)
     return { ok: true, key, executionId }
   }
@@ -370,11 +420,17 @@ export class Ledger {
     this.write(record)
   }
 
-  #reconciliation(tool, args, keyArg, executionId, decision, evidence) {
-    if (!['committed', 'not_committed'].includes(decision)) throw new Error('非法对账结论')
+  #recordByArgs(tool, args, keyArg) {
     const { key, fingerprint } = identity(tool, args, keyArg)
     const record = this.read(key)
-    if (!record || record.fingerprint !== fingerprint || record.executionId !== executionId) {
+    if (!record || record.fingerprint !== fingerprint) throw new Error('执行代次或参数指纹不匹配，禁止对账')
+    return record
+  }
+
+  #reconciliation(record, executionId, decision, evidence) {
+    if (!['committed', 'not_committed'].includes(decision)) throw new Error('非法对账结论')
+    if (!record) throw new Error('找不到对应账本记录，请刷新待核查列表')
+    if (record.executionId !== executionId) {
       throw new Error('执行代次或参数指纹不匹配，禁止对账')
     }
     if (stateOf(record) !== 'unknown') throw new Error('只有未知状态可以对账')
@@ -384,14 +440,28 @@ export class Ledger {
         typeof evidence.summary !== 'string' || evidence.summary.trim().length < 8 || evidence.summary.length > 4096) {
       throw new Error('证据需要有效 source、summary 及本次执行后的 observedAt')
     }
+    const reference = evidence.reference
+    if (reference !== undefined &&
+        (typeof reference !== 'string' || !evidenceReferencePattern.test(reference))) {
+      throw new Error('证据编号仅支持字母、数字、点、下划线和连字符')
+    }
     const nextState = decision === 'committed' ? 'succeeded' : 'released'
     const evidenceSha256 = sha(JSON.stringify(evidence))
     const previewToken = sha(JSON.stringify([record, decision, evidenceSha256]))
-    return { record, nextState, observedAt, evidenceSha256, previewToken }
+    return { record, nextState, observedAt, reference, evidenceSha256, previewToken }
   }
 
   previewReconciliation(tool, args, keyArg, executionId, decision, evidence) {
-    const plan = this.#reconciliation(tool, args, keyArg, executionId, decision, evidence)
+    const record = this.#recordByArgs(tool, args, keyArg)
+    return this.#preview(record, executionId, decision, evidence)
+  }
+
+  previewRecordReconciliation(recordId, executionId, decision, evidence) {
+    return this.#preview(this.read(recordId), executionId, decision, evidence)
+  }
+
+  #preview(record, executionId, decision, evidence) {
+    const plan = this.#reconciliation(record, executionId, decision, evidence)
     return {
       ...operatorSummary(plan.record),
       nextState: plan.nextState,
@@ -402,11 +472,24 @@ export class Ledger {
 
   reconcile(tool, args, keyArg, executionId, decision, evidence, expectedPreview) {
     this.assertOwner()
-    const plan = this.#reconciliation(tool, args, keyArg, executionId, decision, evidence)
+    const record = this.#recordByArgs(tool, args, keyArg)
+    return this.#applyReconciliation(record, executionId, decision, evidence, expectedPreview)
+  }
+
+  reconcileRecord(recordId, executionId, decision, evidence, expectedPreview) {
+    this.assertOwner()
+    if (typeof expectedPreview !== 'string' || !hashPattern.test(expectedPreview)) {
+      throw new Error('请先预览对账并提交预览令牌')
+    }
+    return this.#applyReconciliation(this.read(recordId), executionId, decision, evidence, expectedPreview)
+  }
+
+  #applyReconciliation(record, executionId, decision, evidence, expectedPreview) {
+    const plan = this.#reconciliation(record, executionId, decision, evidence)
     if (expectedPreview !== undefined && expectedPreview !== plan.previewToken) {
       throw new Error('对账记录或证据在预览后已变化，请重新预览')
     }
-    const { record, nextState, evidenceSha256 } = plan
+    const { nextState, evidenceSha256 } = plan
     const current = record.attempts.at(-1)
     record.state = nextState
     record.updatedAt = new Date().toISOString()
@@ -414,6 +497,8 @@ export class Ledger {
     current.reconciledAt = record.updatedAt
     current.reconciliationDecision = decision
     current.readbackEvidenceSha256 = evidenceSha256
+    current.readbackObservedAt = new Date(plan.observedAt).toISOString()
+    if (plan.reference !== undefined) current.readbackReference = plan.reference
     this.write(record)
     return { state: record.state, executionId, evidenceSha256 }
   }

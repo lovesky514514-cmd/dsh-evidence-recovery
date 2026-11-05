@@ -22,6 +22,31 @@ $demoPatch = Join-Path $smokeRoot 'demo.patch.yml'
 dsh --profile sky-evidence-smoke --patch $demoPatch --no-open
 ```
 
+## 安装失败或重启后仍是旧版
+
+`ERR_PNPM_UNEXPECTED_STORE` 表示 Profile 的 `node_modules` 链接到了与本次命令所用路径不同的 pnpm store。DSH 外部复测在切换命令工作目录后遇到此错误。先回到该 Profile 首次安装时所用的固定目录和 pnpm 配置，再执行 `dsh plugin add/remove`。源码升级时传入解压目录的绝对路径，避免为了指向新源码而切换工作目录。
+
+以下示例用于隔离 Profile。先将 `$installDir` 设为固定的安装工作目录，`$sourceDir` 设为新源码的绝对路径，并确认当前 `DSH_HOME` 指向目标测试环境。
+
+```powershell
+$profile = 'sky-evidence-smoke'
+Push-Location -LiteralPath $installDir
+try {
+    dsh plugin --profile $profile add "file:$sourceDir"
+    if ($LASTEXITCODE -ne 0) { throw '安装失败，请检查 DSH 输出指向的 pnpm 日志。' }
+} finally {
+    Pop-Location
+}
+
+$installed = Join-Path $env:DSH_HOME "profiles/$profile/node_modules/sky-evidence-recovery/package.json"
+$expected = (Get-Content -Raw -LiteralPath (Join-Path $sourceDir 'package.json') | ConvertFrom-Json).version
+$actual = (Get-Content -Raw -LiteralPath $installed | ConvertFrom-Json).version
+if (!$expected -or $actual -ne $expected) { throw '已安装版本与目标源码不一致。' }
+```
+
+版本确认后重启目标 Profile，检查设置页能读到账本，并用 `sky_recovery_health` 核对保护规则和锁。原安装环境无法恢复时，优先用新名称创建一次性测试 Profile。现有 Profile 的配置、会话和账本应保留。 [pnpm 错误说明](https://pnpm.io/errors#err_pnpm_unexpected_store)
+
+
 ## 验收路径
 
 | 操作 | 预期结果 |
@@ -36,6 +61,28 @@ dsh --profile sky-evidence-smoke --patch $demoPatch --no-open
 | 停机、卸载、启动、重装并重新配置 | 卸载后工具消失。重装后健康与保护恢复，原账本继续拦截重复调用 |
 
 卸载与重装用 `dsh plugin --profile sky-evidence-smoke remove sky-evidence-recovery` 和 `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"`。卸载后的启动使用无 SKY 引用的配置层。只在明确隔离的测试目录制造锁或磁盘故障。
+
+已知业务标识时，用 `node admin.js lookup --data-dir $ledgerDir --tool $tool` 在操作者终端查找对应记录。遇到锁故障，运行 `node admin.js lock-status --data-dir $ledgerDir`，检查结果与人工恢复步骤见 [操作者恢复](README.md#操作者恢复)。
+
+## DSH Web 向导复测
+
+本轮实测 Windows 桌面版 DSH 0.2.0-rc.2 和 npm DSH 0.2.1-rc.5。浏览器复测使用 Windows、Node.js 24.19、Playwright 和 Chromium。先创建一次性测试根目录 `$testRoot`，将 `DSH_HOME` 指向其 `home` 子目录。复测使用模拟账本与回读证据，无需配置模型或下游账户。
+
+```powershell
+$env:DSH_HOME = Join-Path $testRoot 'home'
+& $dsh --profile sky-web-audit --from-default-profile web --dump-config
+& $dsh plugin --profile sky-web-audit add "file:$($PWD.Path)"
+```
+
+以下命令用 Node 启动 npm 版 DSH。将 `$dshEntry` 设为对应 CLI 包的 `lib/bin.js`，将 `$playwrightPath` 设为测试用 Playwright 模块的绝对路径。使用 Playwright 自带 Chromium 时可省略 `--browser`。
+
+```powershell
+node scripts/verify-dsh-web.mjs --root $testRoot --executable (Get-Command node).Source `
+  --entry $dshEntry --playwright $playwrightPath --browser $browserExe
+```
+
+npm DSH 0.2.1-rc.5 可加 --guest-peer，在同一宿主内创建测试 Peer，验证网关拒绝非所有者。验证桌面版内置宿主时，使用 `--electron`，把 `--executable` 指向 Electron 可执行文件，把 `--entry` 指向随桌面版打包的 `@deepseek-ai/dsh-desktop-host/lib/cli.js`。脚本只连接临时启动的回环服务，下载测试证据后正常关停宿主，再走离线 CLI 写入。卸载后以同样参数加 `--removed` 检查设置入口。
+
 
 ## 与其他策略组合
 

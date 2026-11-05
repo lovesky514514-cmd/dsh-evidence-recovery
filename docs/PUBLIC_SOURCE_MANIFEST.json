@@ -1,27 +1,7 @@
 {
-  "public_version": "0.1.2",
-  "historical_tested_version": "0.1.4-beta.1",
-  "release_status": "public Beta candidate; GitHub release tag not created",
-  "manifest_excludes": [
-    "docs/PUBLIC_SOURCE_MANIFEST.json"
-  ],
-  "changes_since_0.1.1": {
-    "runtime_code": [
-      "index.js",
-      "ledger.js"
-    ],
-    "operator_cli": [
-      "admin.js"
-    ],
-    "test_suite": [
-      "test/admin.test.js"
-    ],
-    "line_ending_only": [
-      "demo.js",
-      "cordis.patch.yml"
-    ]
-  },
-  "file_count": 32,
+  "public_version": "0.1.3-beta.4",
+  "algorithm": "SHA-256",
+  "file_count": 38,
   "files": [
     {
       "path": ".gitignore",
@@ -37,7 +17,7 @@
     },
     {
       "path": "DSH_接入验收.md",
-      "sha256": "a83e930d1df4160fa003ffc84cacc2eefd1d4c63eda87df097fcdf478e59cead"
+      "sha256": "b04b61a53a0eed17cc83ad0b664bc26f06dbbe06f00bc00b72936a8fa2dfda92"
     },
     {
       "path": "DSH_本地试跑.ps1",
@@ -53,23 +33,23 @@
     },
     {
       "path": "README.en.md",
-      "sha256": "5167e38cefeebe482f0cdb4233427b567389578eb2f6f2ac215d89c65c48e70a"
+      "sha256": "9d46155c203b9ed799abff79604b97d299ed4284b3bdbd720e35e925e6441a4a"
     },
     {
       "path": "README.ja.md",
-      "sha256": "03c92c6edaeaa07120dc2f263f0779a2c25a689785e900cc9409e1272ed02160"
+      "sha256": "f2e6cd5ce69a5e89af5fa14952c8968494e2defadf31d1c5fc7dcf31803447d8"
     },
     {
       "path": "README.ko.md",
-      "sha256": "9a291831113c71e5018a9f1b451488e99d975aa78dd3efa0aca8edee792413ef"
+      "sha256": "a46f751ce6dbb7979163f2872850d8669352cce9aaaed7a0aa5984a86e1df94d"
     },
     {
       "path": "README.md",
-      "sha256": "9dd373feabb9c9bfdf0d9b564938e8ab4a11952463c98f33a8b247d6a7e153f3"
+      "sha256": "ca67eb87fe885d76efbe74c660a732e5897840081e9370a95d5878954904b9d2"
     },
     {
       "path": "admin.js",
-      "sha256": "f12dd17d82a831659d4e63946f29dbcd2cdfe2f524bb82182116ac6cb32ba65f"
+      "sha256": "1bd7a51c20adb90711bd2c66c3598b10a164418cb4a71fd358ea73e84908ffcd"
     },
     {
       "path": "cordis.patch.yml",
@@ -81,39 +61,47 @@
     },
     {
       "path": "docs/A-E_rerun_0.1.2.md",
-      "sha256": "67f5f799ca7c4102b41a75bf1a34beb44c94c2f9e809ee2a0bcf5a9093bca121"
+      "sha256": "9ec69ecdc4f971d4636ddb5db1655385f2ccb8152b593aceb990081757083e28"
     },
     {
       "path": "docs/FINAL_TEST_REPORT.md",
-      "sha256": "74604eb3497b7dea7eefaa548defed100ec719c89834c122c29714a678c8efcd"
+      "sha256": "cb1e4bf53f76d92a988f650d6bdd7f9f154b2f7357c88bc09b0a1b8782fbdc5a"
+    },
+    {
+      "path": "docs/Public_Evidence_0.1.3-beta.4.zip",
+      "sha256": "7f8f1c233ffc7a73947e2971401e1119b0e7aa249fa6253cef959b0a3ac8a0ad"
     },
     {
       "path": "docs/RELEASE_NOTES.md",
-      "sha256": "7a6edd7c4de2cbe7440642fc4e9b689aa7ef68a6aea4e213bec5822e4d7bb81e"
+      "sha256": "fc41542fc44252a71bafdbf73d39fb90b14a8473e1b65672cedd002d608b5837"
     },
     {
       "path": "docs/SECURITY.md",
-      "sha256": "c0feb342a3cfe1df0ca0322f1c06213398370c9f5bed91aff7c2edb4a92e86a6"
+      "sha256": "abc215ac76d39471562cfdb47f5fe0033f2b19d8284f74c97e929e06646b661c"
     },
     {
       "path": "index.js",
-      "sha256": "b47369f3760a8e7979bac2130ede7a72f5ad1a9478d17996e32468c2f472bc7f"
+      "sha256": "433c1f0530c5f46e91460315a210b3f0a08bfbb7b2a6023c7a1b9ea482af1cea"
     },
     {
       "path": "ledger.js",
-      "sha256": "a2b04fa6a343b50d8f1b182db7678f560acbdf0cf1c79a9bcf0884f49b566483"
+      "sha256": "6288a109d02494944cd99689f93f116409c1a7ff943399493fababa6eadfc3fc"
     },
     {
       "path": "package.json",
-      "sha256": "a2d6b45118402ef73f5939ca6be2bb112a6ce22ff372c49468b0864cf8265764"
+      "sha256": "e6cad7f00ea0dcdf7d42139165848e3b1f9a8504e2aaab13ab0ecd40466eaf40"
     },
     {
       "path": "scripts/check-code-style.mjs",
       "sha256": "5bcbfce58b663a5ec1959a7184d7efde69367cf6e05fbb3385c2c6942fad982b"
     },
     {
+      "path": "scripts/verify-dsh-web.mjs",
+      "sha256": "4574abd68214dc1ecf992dfb94b35067d840164d1ffba2090757176e6ec916b2"
+    },
+    {
       "path": "test/admin.test.js",
-      "sha256": "e80aecfef880984a2c880045b3e9701f1201006dbe31df34714134a2794c558b"
+      "sha256": "35331ae84200144c47f75170c65ab495beb9dfb28963e9b6a2da81b1ae581f99"
     },
     {
       "path": "test/dsh-acceptance.test.js",
@@ -129,7 +117,7 @@
     },
     {
       "path": "test/packaging.test.js",
-      "sha256": "ee4d7e0ff299c2606a8189f07b5f758e1e794d5e38d8d78eaf18cf4bc942f304"
+      "sha256": "ed4313fc036490e6bbf649466606d3dff4c5b792d059e1c93ef57c54685e2883"
     },
     {
       "path": "test/plugin.test.js",
@@ -141,7 +129,23 @@
     },
     {
       "path": "test/safety.test.js",
-      "sha256": "9c23fdc3d883fe444a546e9ea2a55f2e2f86e517dd45cfe56fd2acb94767c665"
+      "sha256": "2e8b151ef06f9878a6e28f172a31a75ff442cc9a95ba0cf046acf5cc4c54229d"
+    },
+    {
+      "path": "test/web-access.test.js",
+      "sha256": "5467b174ffe3c8495dc29ee5b962057ae79cd2d16d476f0a19b14df5563ed6c2"
+    },
+    {
+      "path": "web-access.js",
+      "sha256": "ee8c241cce610a84e7248180d8c9d24d100b23073dba3efc77e31e38682b6fba"
+    },
+    {
+      "path": "web-client.js",
+      "sha256": "15454f0005e78e95bf4d0f67949783c703fa829bfd58d0daf2a531827d5bec6b"
+    },
+    {
+      "path": "web-host.js",
+      "sha256": "5de67a56a491c34569c3801c3e727790ec007c736b3fd02a39348fa1802f974d"
     },
     {
       "path": "启动DSH测试.cmd",
@@ -149,7 +153,7 @@
     },
     {
       "path": "问题与修复记录.md",
-      "sha256": "848310879edf66912479d7c5a4bd4efe3281aaaa43fcd1f7972d9525127a3264"
+      "sha256": "6ef5c0c0481c1df7598dd526ba1c9826d96b795991a4c26010146d410f749256"
     }
   ]
 }

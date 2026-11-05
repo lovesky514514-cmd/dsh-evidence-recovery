@@ -82,18 +82,38 @@ export function apply(ctx, config) {
   const health = ledgerHealth()
   if (!health.ledgerLocked) ctx.logger?.warn?.('SKY Evidence Recovery：' + health.ledgerNote)
 
+  function healthSnapshot() {
+    return {
+      loaded: true,
+      ...ledgerHealth(),
+      protectedTools: [...rules.keys()],
+      invalidRules: [...invalidRules],
+    }
+  }
+
+  ctx.inject?.(['typertGateway', 'connection'], async child => {
+    const { registerWizard } = await import('./web-host.js')
+    registerWizard(child, () => {
+      const { ledgerLocked, protectedTools, invalidRules } = healthSnapshot()
+      const report = { ledgerLocked, protectedTools, invalidRules, pending: null }
+      if (!ledger) return report
+      try {
+        const { records, complete, errors } = ledger.listPending()
+        report.pending = { records: records.slice(0, 100), total: records.length, complete, unreadable: errors.length }
+      } catch {
+        // Keep health available when the ledger directory cannot be read.
+      }
+      return report
+    })
+  })
+
   ctx.tools.register(defineTool({
     name: 'sky_recovery_health',
     description: 'Read-only plugin health, including ledger lock and configured protected tools.',
     parameters: {},
     output: jsonOutput,
     async execute() {
-      return JSON.stringify({
-        loaded: true,
-        ...ledgerHealth(),
-        protectedTools: [...rules.keys()],
-        invalidRules: [...invalidRules],
-      })
+      return JSON.stringify(healthSnapshot())
     },
   }))
 

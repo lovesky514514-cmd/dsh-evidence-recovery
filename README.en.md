@@ -3,7 +3,7 @@
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
 <p align="center">
-  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.2 candidate" src="https://img.shields.io/badge/candidate-0.1.2-276DC3?style=flat-square"></a>
+  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.3-beta.4 candidate" src="https://img.shields.io/badge/candidate-0.1.3--beta.4-276DC3?style=flat-square"></a>
   <img alt="Public Beta" src="https://img.shields.io/badge/status-public%20beta-F59E0B?style=flat-square">
   <img alt="Windows 11 validated" src="https://img.shields.io/badge/tested-Windows%2011-1482BA?style=flat-square">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E7D32?style=flat-square"></a>
@@ -23,9 +23,21 @@ A lightweight **DeepSeek Harness (DSH)** plugin that persists the identity of a 
 
 ## Quickstart
 
+In DSH Web, open Settings → SKY Evidence Recovery to check protection, review pending records, and prepare evidence for offline reconciliation. See the [operator guide](README.md#操作者恢复) for file-free review, business ID lookup, and lock diagnostics.
+
 1. Extract the matching source ZIP and install from its directory with `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"`.
 2. [Configure a rule](#install-and-try). Call `sky_recovery_health` after startup and check the lock, the protected tool and `invalidRules: []`.
 3. On `SKY_EXECUTION_UNKNOWN`, use `node admin.js list --pending --data-dir $ledgerDir` from the trusted operator terminal. Then [inspect, verify and preview reconciliation](README.md#操作者恢复).
+
+## Validated in an actual DSH installation (0.1.3-beta.4)
+
+This build was **installed and loaded in a running DSH Desktop/Web host** via `file:`, rather than tested solely against a mock host. A live `sky_recovery_health` call returned `loaded: true`, `ledgerLocked: true`, and `protectedTools: []`; the demo order tool was `unprotected`, as expected with the default empty `rules` configuration. **Installation alone does not enable protection.**
+
+The user also reports **11 tool calls resulting in five persisted demo orders and no duplicates** from their installed DSH instance. This is reported firsthand usage, not an independently archived trace of those 11 calls. The **DSH host and invocation chain were real; the order side effects were simulated**, not actual payment or refund transactions.
+
+The external Windows acceptance report records **57/57** package tests, **89/89** DSH ToolRuntime assertions, **5/5** model A–E scenarios (10 tool calls), **60/60** simulated business scenarios (110 attempts, 60 simulated side effects, 50 blocked duplicates), and a working DSH Web status panel. [Public evidence](docs/Public_Evidence_0.1.3-beta.4.zip) is a redacted field projection, **not raw logs**. The R30 community-plugin combination and R16 runtime injection remain unverified.
+
+**Operator CLI distribution limitation:** `admin.js` is in the **matching full source archive**, but intentionally absent from the installed npm/DSH runtime package. Users installing only that package cannot run reconciliation from its `node_modules` directory. Obtain the same-version full source and run `node admin.js ...` in a trusted, separate operator terminal after stopping DSH. This package boundary is **not a security boundary**; do not give the agent arbitrary shell, file-write, or plugin-management permissions. A separate operator CLI distribution is a future improvement.
 
 ## Features
 
@@ -86,9 +98,7 @@ flowchart TD
 
 ## Verification and scope
 
-**Current `0.1.2` external acceptance:** Windows `npm run check` **51/51 PASS**, real DSH `tools.execute` **89/89 assertions PASS**, and operator CLI pending-list / preview / reconciliation smoke checks passed. Windows acceptance reported **13 packaged files**; this Linux/npm 10 dry run includes **16** (three additional translated READMEs, no operator CLI). **Web-model A–E was rerun for `0.1.2`: 5/5 scenarios and 10 real tool calls** ([rerun report](docs/A-E_rerun_0.1.2.md)); R30 compatibility is BLOCKED and R16 runtime settlement-write failure injection was not tested. See the [issue and fix log](问题与修复记录.md).
-
-For historical context only, the following table records the earlier acceptance of internal candidate `0.1.4-beta.1` for the first public version, `0.1.1`.
+See the [issue and fix log](问题与修复记录.md) for fresh `0.1.2` checks. The table below records the earlier acceptance of internal candidate `0.1.4-beta.1` for the first public version, `0.1.1`.
 
 | Check | Reported result |
 |---|---|

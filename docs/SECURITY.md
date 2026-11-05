@@ -10,6 +10,7 @@ SKY Evidence Recovery is a fail-closed, opt-in durable ledger for DeepSeek Harne
 - Keep the ledger on a trusted local filesystem with one owning process. Preserve unknown outcomes until independent readback and a trusted human reconciliation.
 - Do not manually delete `.active.lock` while the owner is running. After a crash, investigate pending operations before any lock recovery.
 - Store credentials, authoritative readback evidence, and operator-only tooling outside agent-accessible locations.
+- The Web wizard reads a redacted ledger summary through a DSH owner-only Remote. Evidence drafts stay in the browser until the operator downloads them. Ledger writes require the offline operator CLI.
 
 ## Verified vs unverified
 

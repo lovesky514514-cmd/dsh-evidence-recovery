@@ -3,7 +3,7 @@
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
 <p align="center">
-  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.2 candidate" src="https://img.shields.io/badge/candidate-0.1.2-276DC3?style=flat-square"></a>
+  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.3-beta.4 candidate" src="https://img.shields.io/badge/candidate-0.1.3--beta.4-276DC3?style=flat-square"></a>
   <img alt="Public Beta" src="https://img.shields.io/badge/status-public%20beta-F59E0B?style=flat-square">
   <img alt="Windows 11 validated" src="https://img.shields.io/badge/tested-Windows%2011-1482BA?style=flat-square">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E7D32?style=flat-square"></a>
@@ -23,9 +23,21 @@
 
 ## 빠른 시작
 
+DSH Web의 설정 → SKY Evidence Recovery에서 보호 상태와 확인 대기 기록을 보고 오프라인 조정용 증거를 작성할 수 있습니다.
+
 1. 같은 버전의 소스 ZIP을 풀고 해당 디렉터리에서 `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"`를 실행합니다.
 2. [보호 규칙을 설정](#설치-및-테스트)하고 시작한 뒤 `sky_recovery_health`에서 잠금, 보호 대상 도구, `invalidRules: []`를 확인합니다.
 3. `SKY_EXECUTION_UNKNOWN`이 발생하면 운영자 터미널에서 `node admin.js list --pending --data-dir $ledgerDir`를 실행합니다. 이어서 [기록 조회, 독립적인 검증, 조정 미리 보기](README.md#操作者恢复)를 진행합니다.
+
+## 실제 DSH 설치 및 사용 검증 (0.1.3-beta.4)
+
+이번 빌드는 모의 호스트만 사용한 테스트가 아니라, 실제 실행 중인 **DSH Desktop/Web에 `file:` 방식으로 설치하고 로드**했습니다. `sky_recovery_health` 호출에서 `loaded: true`, `ledgerLocked: true`, `protectedTools: []`가 반환되었고, 데모 주문 도구는 `unprotected` 상태였습니다. 이는 기본 설정인 `rules: []`에서 정상입니다. **플러그인 설치만으로 도구 보호가 시작되지는 않습니다.**
+
+사용자는 설치된 DSH에서 **도구 호출 11회, 저장된 데모 주문 5건, 중복 주문 0건**을 확인했다고 보고했습니다. 이는 사용자의 실제 사용 보고이며, 해당 11회에 대한 원본 호출 로그가 공개 증거로 별도 보관된 것은 아닙니다. **DSH 설치와 호출 경로는 실제**였지만, **주문은 모의 도구의 부작용**이며 실제 결제나 환불 검증이 아닙니다.
+
+외부 Windows 검증 보고서 기준으로 단위 테스트 **57/57**, DSH ToolRuntime **89/89**, 모델 A–E **5/5**(실제 도구 호출 10회), 모의 업무 시나리오 **60/60**(시도 110회, 모의 부작용 60회, 중복 차단 50회), DSH Web 상태 패널이 검증되었습니다. [공개 증거](docs/Public_Evidence_0.1.3-beta.4.zip)는 개인정보를 제거한 필드 요약본이며 원본 로그가 아닙니다. R30 및 R16의 특정 검증은 아직 완료되지 않았습니다.
+
+**운영자 도구 배포상의 제한:** `admin.js`는 **동일 버전의 전체 소스**에만 포함되며 npm/DSH 런타임 설치 패키지에는 포함되지 않습니다. 설치된 패키지 안에서 파일을 찾으면 오류가 발생할 수 있습니다. DSH를 중지한 뒤, 신뢰할 수 있는 별도 운영자 터미널에서 해당 버전의 전체 소스로 `node admin.js ...`를 실행해야 합니다. 패키지 제외만으로 권한 격리가 보장되지는 않습니다. 향후 별도 운영자 CLI 배포를 검토합니다.
 
 ## 주요 기능
 
@@ -86,9 +98,7 @@ flowchart TD
 
 ## 검증 범위
 
-**현재 `0.1.2` 외부 검증:** Windows `npm run check` **51/51 PASS**, 실제 DSH `tools.execute` **89/89 검증 PASS**, 운영자 CLI의 대기 목록 및 조정 미리보기/확인 테스트를 완료했습니다. Windows 검증의 실행 패키지는 **13개 파일**, Linux/npm 10 재검사에서는 번역 README 3개가 추가된 **16개 파일**이며 관리 CLI는 포함되지 않습니다. 이 버전은 **실제 DSH Web에서 모델 A–E를 재검증하여 5/5개 시나리오 및 실제 도구 호출 10회를 확인했습니다** ([재검증 보고서](docs/A-E_rerun_0.1.2.md)). R30 호환성은 BLOCKED이며 R16 런타임 저장 실패 주입은 미검증입니다. 자세한 내용은 [문제 및 수정 기록](问题与修复记录.md)을 참고하세요.
-
-아래 표는 과거 기록으로서 첫 공개 버전 `0.1.1`에 해당하는 내부 후보 `0.1.4-beta.1`의 이전 검증 결과입니다.
+`0.1.2` 검증 결과는 [문제 및 수정 기록](问题与修复记录.md)을 참조하세요. 아래 표는 첫 공개 버전 `0.1.1`에 해당하는 내부 후보 `0.1.4-beta.1`의 이전 검증 결과입니다.
 
 | 항목 | 결과 |
 |---|---|

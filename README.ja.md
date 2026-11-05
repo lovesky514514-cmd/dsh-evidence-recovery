@@ -3,7 +3,7 @@
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
 <p align="center">
-  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.2 candidate" src="https://img.shields.io/badge/candidate-0.1.2-276DC3?style=flat-square"></a>
+  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.3-beta.4 candidate" src="https://img.shields.io/badge/candidate-0.1.3--beta.4-276DC3?style=flat-square"></a>
   <img alt="Public Beta" src="https://img.shields.io/badge/status-public%20beta-F59E0B?style=flat-square">
   <img alt="Windows 11 validated" src="https://img.shields.io/badge/tested-Windows%2011-1482BA?style=flat-square">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E7D32?style=flat-square"></a>
@@ -23,9 +23,21 @@
 
 ## クイックスタート
 
+DSH Web の「設定 → SKY Evidence Recovery」で保護状態や照合待ちの記録を確認し、オフライン照合用の証拠を作成できます。
+
 1. 同じバージョンのソース ZIP を展開し、そのディレクトリで `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"` を実行します。
 2. [保護ルールを設定](#インストールと試用)し、起動後に `sky_recovery_health` でロック、対象ツール、`invalidRules: []` を確認します。
 3. `SKY_EXECUTION_UNKNOWN` が出たら、管理者端末で `node admin.js list --pending --data-dir $ledgerDir` を実行します。続いて[記録の確認、独立した照会、照合のプレビュー](README.md#操作者恢复)を行います。
+
+## 実際の DSH へのインストールと動作検証（0.1.3-beta.4）
+
+今回はモック環境だけではなく、稼働中の **DSH Desktop/Web に `file:` でインストールし、プラグインのロードを確認**しました。`sky_recovery_health` は `loaded: true`、`ledgerLocked: true`、`protectedTools: []` を返し、デモ注文ツールの状態は `unprotected` でした。これは初期設定 `rules: []` の期待動作です。**インストールしただけでは保護は有効になりません。**
+
+利用者からは、インストール済みの DSH 上で **11 回のツール呼び出しから 5 件のデモ注文が保存され、重複は 0 件**だったとの報告もあります。この 11 回分の原始ログは公開証拠には別途収録されていません。**DSH のホストとツール呼び出しは実環境**ですが、**注文は模擬的な副作用**であり、実際の決済・返金を検証したものではありません。
+
+外部 Windows 検証報告では、テスト **57/57**、DSH ToolRuntime **89/89**、実モデル A–E **5/5**（ツール呼び出し 10 回）、模擬業務シナリオ **60/60**（呼び出し試行 110 回、模擬副作用 60 回、重複防止 50 回）、DSH Web 状態パネルの動作が報告されています。[公開証拠](docs/Public_Evidence_0.1.3-beta.4.zip) は匿名化したフィールドの抜粋であり、生ログではありません。R30 と R16 に関する一部検証は未実施です。
+
+**管理用 CLI の配布上の制約:** `admin.js` は**同一バージョンの完全なソース**に含まれますが、npm/DSH ランタイムパッケージには含まれません。インストール先の `node_modules` から直接実行するとファイルが見つかりません。DSH の停止後、信頼できる別の管理者端末で同一バージョンのソースから `node admin.js ...` を実行してください。パッケージから除外すること自体はセキュリティ境界ではありません。管理用 CLI の別配布は今後の改善事項です。
 
 ## 主な機能
 
@@ -86,9 +98,7 @@ flowchart TD
 
 ## 検証結果と制限
 
-**現行 `0.1.2` の外部再検証：** Windows `npm run check` **51/51 PASS**、実際の DSH `tools.execute` **89/89 件 PASS**、管理 CLI の保留一覧・対帳プレビュー・確認を実台帳で検証。Windows 検証では実行用パッケージ **13 ファイル**、Linux/npm 10 の再検査では翻訳 README 3 件を含む **16 ファイル**（管理 CLI は除外）です。**`0.1.2` の Web モデル A–E は実際の DSH Web で再検証済み：5/5 シナリオ合格、実ツール呼び出し 10 回**（[再検証報告](docs/A-E_rerun_0.1.2.md)）。R30 の互換試験は BLOCKED、R16 の実ランタイム書き込み障害注入は未検証です。詳細は[問題と修正の記録](问题与修复记录.md)を参照してください。
-
-以下の表は過去の履歴であり、初回公開版 `0.1.1` に対応する内部候補 `0.1.4-beta.1` の検証記録です。
+`0.1.2` の検証結果は[問題と修正の記録](问题与修复记录.md)を参照してください。以下は初回公開版 `0.1.1` に対応する内部候補 `0.1.4-beta.1` の検証記録です。
 
 | 項目 | 実績 |
 |---|---|
