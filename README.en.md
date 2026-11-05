@@ -3,7 +3,7 @@
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
 <p align="center">
-  <a href="docs/RELEASE_NOTES.md"><img alt="Release 0.1.1" src="https://img.shields.io/badge/release-0.1.1-276DC3?style=flat-square"></a>
+  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.2 candidate" src="https://img.shields.io/badge/candidate-0.1.2-276DC3?style=flat-square"></a>
   <img alt="Public Beta" src="https://img.shields.io/badge/status-public%20beta-F59E0B?style=flat-square">
   <img alt="Windows 11 validated" src="https://img.shields.io/badge/tested-Windows%2011-1482BA?style=flat-square">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E7D32?style=flat-square"></a>
@@ -20,6 +20,12 @@
 A lightweight **DeepSeek Harness (DSH)** plugin that persists the identity of a protected operation **before dispatch**. When a response is lost or a tool times out, fails, or leaves an uncertain outcome, the agent cannot blindly repeat the same side effect. Independent readback and trusted operator reconciliation determine the next step.
 
 **Not an exactly-once system.** Only tools explicitly listed in `rules` are protected; an empty rule set protects nothing.
+
+## Quickstart
+
+1. Extract the matching source ZIP and install from its directory with `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"`.
+2. [Configure a rule](#install-and-try). Call `sky_recovery_health` after startup and check the lock, the protected tool and `invalidRules: []`.
+3. On `SKY_EXECUTION_UNKNOWN`, use `node admin.js list --pending --data-dir $ledgerDir` from the trusted operator terminal. Then [inspect, verify and preview reconciliation](README.md#操作者恢复).
 
 ## Features
 
@@ -80,7 +86,9 @@ flowchart TD
 
 ## Verification and scope
 
-The final DSH acceptance dated 2026-11-05 covered the **same runtime logic** under the internal candidate name `0.1.4-beta.1`. `0.1.1` is the first public release label; historical test version identifiers and hashes remain unchanged for traceability.
+**Current `0.1.2` external acceptance:** Windows `npm run check` **51/51 PASS**, real DSH `tools.execute` **89/89 assertions PASS**, and operator CLI pending-list / preview / reconciliation smoke checks passed. Windows acceptance reported **13 packaged files**; this Linux/npm 10 dry run includes **16** (three additional translated READMEs, no operator CLI). **Web-model A–E was rerun for `0.1.2`: 5/5 scenarios and 10 real tool calls** ([rerun report](docs/A-E_rerun_0.1.2.md)); R30 compatibility is BLOCKED and R16 runtime settlement-write failure injection was not tested. See the [issue and fix log](问题与修复记录.md).
+
+For historical context only, the following table records the earlier acceptance of internal candidate `0.1.4-beta.1` for the first public version, `0.1.1`.
 
 | Check | Reported result |
 |---|---|

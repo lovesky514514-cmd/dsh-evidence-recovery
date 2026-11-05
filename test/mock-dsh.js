@@ -38,6 +38,7 @@ export async function withMockPlugin(run, options = {}) {
   const events = new Map()
   let disposer
   const context = {
+    logger: options.logger,
     effect(callback) { disposer = callback() },
     on(name, callback) { events.set(name, callback) },
     tools: { register(tool) { tools.set(tool.name, tool) } },

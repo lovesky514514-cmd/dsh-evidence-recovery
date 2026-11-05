@@ -131,15 +131,24 @@ test('startup I/O failure blocks protected calls without exposing the storage pa
   { beforeApply(dir) { writeFileSync(join(dir, 'ledger'), 'file') } },
 ))
 
-test('duplicate protection rules block dispatch without unloading the interceptor', () => withMockPlugin(
-  async ({ event, tools }) => {
-    const health = JSON.parse(await tools.get('sky_recovery_health').execute({}))
-    assert.deepEqual(health.invalidRules, [tool])
-    const result = await event(exec, () => assert.fail('Unexpected dispatch'))
-    assert.equal(result.error.info.code, 'SKY_INVALID_RULE')
-  },
-  { config: { rules: [{ tool }, { tool }] } },
-))
+test('invalid protection rules warn once and duplicates block dispatch', () => {
+  const warnings = []
+  return withMockPlugin(
+    async ({ event, tools }) => {
+      const health = JSON.parse(await tools.get('sky_recovery_health').execute({}))
+      assert.deepEqual(health.invalidRules, [tool, 'sky_recovery_health', ''])
+      assert.equal(warnings.length, 1)
+      assert.match(warnings[0], /SKY_INVALID_RULE/)
+      const result = await event(exec, () => assert.fail('Unexpected dispatch'))
+      assert.equal(result.error.info.code, 'SKY_INVALID_RULE')
+      assert.equal((await event({ name: 'sky_recovery_health', arguments: {} }, ok)).isError, false)
+    },
+    {
+      logger: { warn(message) { warnings.push(message) } },
+      config: { rules: [{ tool }, { tool }, { tool: 'sky_recovery_health' }, { tool: '' }] },
+    },
+  )
+})
 
 test('disposing stops new calls and retains the lock until an in-flight call settles', () => withMockPlugin(
   async ({ event, closePlugin, dir }) => {

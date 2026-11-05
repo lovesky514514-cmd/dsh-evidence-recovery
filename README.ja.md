@@ -3,7 +3,7 @@
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
 <p align="center">
-  <a href="docs/RELEASE_NOTES.md"><img alt="Release 0.1.1" src="https://img.shields.io/badge/release-0.1.1-276DC3?style=flat-square"></a>
+  <a href="docs/RELEASE_NOTES.md"><img alt="0.1.2 candidate" src="https://img.shields.io/badge/candidate-0.1.2-276DC3?style=flat-square"></a>
   <img alt="Public Beta" src="https://img.shields.io/badge/status-public%20beta-F59E0B?style=flat-square">
   <img alt="Windows 11 validated" src="https://img.shields.io/badge/tested-Windows%2011-1482BA?style=flat-square">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E7D32?style=flat-square"></a>
@@ -20,6 +20,12 @@
 **DeepSeek Harness（DSH）** のツール実行を保護する軽量プラグインです。対象ツールの実行**前**に操作 ID を永続記録します。応答の消失、タイムアウト、例外などで結果が不明な場合は同じ副作用の安易な再実行を止め、独立した結果照会と管理者による照合を経て次の操作を判断します。
 
 **Exactly-once は保証しません。** 保護されるのは `rules` に明示したツールだけです。初期設定の `rules: []` では何も保護されません。
+
+## クイックスタート
+
+1. 同じバージョンのソース ZIP を展開し、そのディレクトリで `dsh plugin --profile sky-evidence-smoke add "file:$($PWD.Path)"` を実行します。
+2. [保護ルールを設定](#インストールと試用)し、起動後に `sky_recovery_health` でロック、対象ツール、`invalidRules: []` を確認します。
+3. `SKY_EXECUTION_UNKNOWN` が出たら、管理者端末で `node admin.js list --pending --data-dir $ledgerDir` を実行します。続いて[記録の確認、独立した照会、照合のプレビュー](README.md#操作者恢复)を行います。
 
 ## 主な機能
 
@@ -80,7 +86,9 @@ flowchart TD
 
 ## 検証結果と制限
 
-2026-11-05 の最終検証対象は、公開版 `0.1.1` と**実行ロジックが同じ**内部候補 `0.1.4-beta.1` です。証跡維持のため原本のバージョン番号とハッシュを残しています。
+**現行 `0.1.2` の外部再検証：** Windows `npm run check` **51/51 PASS**、実際の DSH `tools.execute` **89/89 件 PASS**、管理 CLI の保留一覧・対帳プレビュー・確認を実台帳で検証。Windows 検証では実行用パッケージ **13 ファイル**、Linux/npm 10 の再検査では翻訳 README 3 件を含む **16 ファイル**（管理 CLI は除外）です。**`0.1.2` の Web モデル A–E は実際の DSH Web で再検証済み：5/5 シナリオ合格、実ツール呼び出し 10 回**（[再検証報告](docs/A-E_rerun_0.1.2.md)）。R30 の互換試験は BLOCKED、R16 の実ランタイム書き込み障害注入は未検証です。詳細は[問題と修正の記録](问题与修复记录.md)を参照してください。
+
+以下の表は過去の履歴であり、初回公開版 `0.1.1` に対応する内部候補 `0.1.4-beta.1` の検証記録です。
 
 | 項目 | 実績 |
 |---|---|

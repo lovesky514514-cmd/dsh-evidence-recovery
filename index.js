@@ -36,9 +36,14 @@ export function apply(ctx, config) {
   const rules = new Map()
   const invalidRules = new Set()
   for (const rule of config?.rules ?? []) {
-    if (!rule.tool) continue
-    if (rule.tool.startsWith('sky_recovery_') || rules.has(rule.tool)) invalidRules.add(rule.tool)
-    rules.set(rule.tool, rule.keyArg || undefined)
+    if (!rule.tool || rule.tool.startsWith('sky_recovery_') || rules.has(rule.tool)) {
+      invalidRules.add(rule.tool || '')
+    }
+    if (rule.tool) rules.set(rule.tool, rule.keyArg || undefined)
+  }
+
+  if (invalidRules.size) {
+    ctx.logger?.warn?.('SKY_INVALID_RULE: 保护规则存在无效条目，请检查 sky_recovery_health 的 invalidRules')
   }
 
   let ledger

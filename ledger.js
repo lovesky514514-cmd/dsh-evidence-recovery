@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import {
   closeSync, constants, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync,
-  readSync, renameSync, unlinkSync, writeFileSync,
+  readdirSync, readSync, renameSync, unlinkSync, writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -11,8 +11,13 @@ const MAX_ARGUMENT_BYTES = 65536
 const MAX_RECORD_BYTES = 524288
 const sha = value => createHash('sha256').update(value).digest('hex')
 const hashPattern = /^[a-f0-9]{64}$/
+const recordFilename = /^[a-f0-9]{64}\.json$/
+const executionIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
 const attemptStates = ['running', 'unknown', 'succeeded', 'released']
 const parseDate = value => typeof value === 'string' ? Date.parse(value) : NaN
+const diagnosticCodes = new Set([
+  'ABORTED', 'ABORTED_BEFORE_DISPATCH', 'INVALID_ARGS', 'INVALID_TOOL_OUTPUT', 'TOOL_TIMEOUT', 'UNKNOWN_TOOL',
+])
 
 export class LedgerInputError extends Error {
   constructor(code, message) {
@@ -152,14 +157,33 @@ function validRecord(record, key) {
     current.executionId === record.executionId && current.state === record.state
 }
 
+function operatorSummary(record) {
+  const current = record.attempts.at(-1)
+  const state = stateOf(record)
+  const { dshErrorCode, reason } = current
+  if (!executionIdPattern.test(record.executionId)) throw new Error('账本执行代次格式无效')
+  return {
+    recordId: record.key,
+    tool: record.tool,
+    executionId: record.executionId,
+    state,
+    recordedState: record.state,
+    updatedAt: new Date(parseDate(record.updatedAt)).toISOString(),
+    legacyRelease: state === 'unknown' && legacyRelease(current),
+    reason: ['TOOL_OUTCOME_UNKNOWN', 'TOOL_DISPATCH_THROWN', 'DSH_NOT_DISPATCHED'].includes(reason) ? reason : null,
+    // A syntactically valid error identifier can still contain private data.
+    diagnosticCode: diagnosticCodes.has(dshErrorCode) ? dshErrorCode : (dshErrorCode ? 'OTHER_TOOL_ERROR' : null),
+  }
+}
+
 export class Ledger {
-  constructor(dir = DEFAULT_DIR) {
+  constructor(dir = DEFAULT_DIR, { create = true } = {}) {
     this.dir = resolve(dir)
     this.lockPath = join(this.dir, '.active.lock')
     this.locked = false
     this.lockNote = ''
     this.owner = randomUUID()
-    this.directories = directoryChain(this.dir, true)
+    this.directories = directoryChain(this.dir, create)
     this.lostOwnership = false
   }
 
@@ -280,6 +304,30 @@ export class Ledger {
     return { state: stateOf(record), key, fingerprint, executionId: record.executionId, updatedAt: record.updatedAt }
   }
 
+  inspectRecord(recordId) {
+    const record = this.read(recordId)
+    if (!record) throw new Error('找不到对应账本记录')
+    return operatorSummary(record)
+  }
+
+  listPending() {
+    this.assertDirectory()
+    const records = []
+    const errors = []
+    for (const name of readdirSync(this.dir)) {
+      if (!recordFilename.test(name)) continue
+      const recordId = name.slice(0, -5)
+      try {
+        const record = this.inspectRecord(recordId)
+        if (record.state === 'unknown') records.push(record)
+      } catch {
+        errors.push({ recordId, code: 'SKY_LEDGER_RECORD_UNREADABLE' })
+      }
+    }
+    records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.recordId.localeCompare(b.recordId))
+    return { records, errors, complete: errors.length === 0 }
+  }
+
   claim(tool, args, keyArg) {
     this.assertOwner()
     const { key, fingerprint } = identity(tool, args, keyArg)
@@ -322,8 +370,7 @@ export class Ledger {
     this.write(record)
   }
 
-  reconcile(tool, args, keyArg, executionId, decision, evidence) {
-    this.assertOwner()
+  #reconciliation(tool, args, keyArg, executionId, decision, evidence) {
     if (!['committed', 'not_committed'].includes(decision)) throw new Error('非法对账结论')
     const { key, fingerprint } = identity(tool, args, keyArg)
     const record = this.read(key)
@@ -331,20 +378,43 @@ export class Ledger {
       throw new Error('执行代次或参数指纹不匹配，禁止对账')
     }
     if (stateOf(record) !== 'unknown') throw new Error('只有未知状态可以对账')
-    const current = record.attempts.at(-1)
     const observedAt = parseDate(evidence?.observedAt)
     if (typeof evidence?.source !== 'string' || !evidence.source.trim() || evidence.source.length > 120 ||
         !Number.isFinite(observedAt) || observedAt < parseDate(record.updatedAt) || observedAt > Date.now() ||
         typeof evidence.summary !== 'string' || evidence.summary.trim().length < 8 || evidence.summary.length > 4096) {
       throw new Error('证据需要有效 source、summary 及本次执行后的 observedAt')
     }
-    record.state = decision === 'committed' ? 'succeeded' : 'released'
+    const nextState = decision === 'committed' ? 'succeeded' : 'released'
+    const evidenceSha256 = sha(JSON.stringify(evidence))
+    const previewToken = sha(JSON.stringify([record, decision, evidenceSha256]))
+    return { record, nextState, observedAt, evidenceSha256, previewToken }
+  }
+
+  previewReconciliation(tool, args, keyArg, executionId, decision, evidence) {
+    const plan = this.#reconciliation(tool, args, keyArg, executionId, decision, evidence)
+    return {
+      ...operatorSummary(plan.record),
+      nextState: plan.nextState,
+      observedAt: new Date(plan.observedAt).toISOString(),
+      previewToken: plan.previewToken,
+    }
+  }
+
+  reconcile(tool, args, keyArg, executionId, decision, evidence, expectedPreview) {
+    this.assertOwner()
+    const plan = this.#reconciliation(tool, args, keyArg, executionId, decision, evidence)
+    if (expectedPreview !== undefined && expectedPreview !== plan.previewToken) {
+      throw new Error('对账记录或证据在预览后已变化，请重新预览')
+    }
+    const { record, nextState, evidenceSha256 } = plan
+    const current = record.attempts.at(-1)
+    record.state = nextState
     record.updatedAt = new Date().toISOString()
     current.state = record.state
     current.reconciledAt = record.updatedAt
     current.reconciliationDecision = decision
-    current.readbackEvidenceSha256 = sha(JSON.stringify(evidence))
+    current.readbackEvidenceSha256 = evidenceSha256
     this.write(record)
-    return { state: record.state, executionId, evidenceSha256: current.readbackEvidenceSha256 }
+    return { state: record.state, executionId, evidenceSha256 }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "sky-evidence-recovery",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Fail-closed durable execution ledger and operator-attested readback for opt-in DeepSeek Harness tools",
   "type": "module",
