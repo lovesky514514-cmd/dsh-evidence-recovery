@@ -1,4 +1,4 @@
-<h1 align="center">SKY Evidence Recovery</h1>
+<h1 align="center">DSH Evidence Recovery</h1>
 
 <p align="center"><strong>Durable evidence-backed recovery for opt-in DeepSeek Harness tools</strong></p>
 
